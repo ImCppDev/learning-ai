@@ -1,0 +1,18 @@
+{
+    "name": "${localWorkspaceFolderBasename}-codex",
+    "build": {
+        "dockerfile": "../Dockerfile",
+        "context": "../.."
+    },
+    "remoteUser": "dev",
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "mounts": [
+        "source=codex-config-${localWorkspaceFolderBasename},target=/home/dev/.codex,type=volume"
+    ],
+    "containerEnv": {
+        "CODEX_HOME": "/home/dev/.codex"
+    },
+    "postCreateCommand": "sudo npm install -g @openai/codex && bash -c '[ -f pyproject.toml ] && uv sync; [ -f package.json ] && npm install; true'",
+    "postStartCommand": "sudo mkdir -p /home/dev/.codex && sudo chown -R dev:dev /home/dev/.codex && chmod -R u+rwX /home/dev/.codex && if [ ! -f /home/dev/.codex/config.toml ]; then printf 'sandbox_mode = \"danger-full-access\"\\napproval_policy = \"on-request\"\\n' > /home/dev/.codex/config.toml; fi"
+}

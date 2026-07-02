@@ -1,0 +1,30 @@
+[project]
+name = "learning-ai"
+version = "0.1.0"
+description = "Репозиторий для экспериментов и обучения в области ИИ/LLM"
+requires-python = ">=3.11"
+dependencies = [
+    "colorama>=0.4.6",
+    "openai>=2.41.1",
+    "torch>=2.5.0",
+    "torchvision>=0.20.0",
+    "numpy>=2.0.0",
+    "pandas>=2.2.0",
+    "matplotlib>=3.9.0",
+    "scikit-learn>=1.5.0",
+    "transformers>=4.46.0",
+    "datasets>=3.0.0",
+    "accelerate>=1.0.0",
+    "huggingface-hub>=0.26.0",
+    "sentencepiece>=0.2.0",
+    "tqdm>=4.66.0",
+    "jupyter>=1.1.0",
+    "ipykernel>=6.29.0",
+    "flask>=3.1.0",
+    "mcp[cli]>=1.28.1",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+]

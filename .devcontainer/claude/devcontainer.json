@@ -1,0 +1,17 @@
+{
+    "name": "${localWorkspaceFolderBasename}-claude",
+    "build": {
+        "dockerfile": "../Dockerfile",
+        "context": "../.."
+    },
+    "remoteUser": "dev",
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "features": {
+        "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+    },
+    "mounts": [
+        "source=claude-config-${localWorkspaceFolderBasename},target=/home/dev/.claude,type=volume"
+    ],
+    "postCreateCommand": "bash -c '[ -f pyproject.toml ] && uv sync; [ -f package.json ] && npm install; true'"
+}

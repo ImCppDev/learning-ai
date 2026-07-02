@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Свёрточные нейросети (CNN) — конспект</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #1a1a1a;
+    background: #fff;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 48px 40px;
+  }
+
+  @media print {
+    body { padding: 0; }
+    .page-break { page-break-before: always; }
+    a { color: #185FA5; text-decoration: none; }
+  }
+
+  h1 { font-size: 28px; font-weight: 600; margin-bottom: 6px; color: #0C447C; }
+  h2 { font-size: 20px; font-weight: 600; margin: 36px 0 12px; color: #1a1a1a; border-bottom: 1.5px solid #e0e0e0; padding-bottom: 6px; }
+  h3 { font-size: 15px; font-weight: 600; margin: 20px 0 8px; color: #1a1a1a; }
+  p { margin-bottom: 10px; }
+  ul, ol { margin: 8px 0 12px 20px; }
+  li { margin-bottom: 4px; }
+  a { color: #185FA5; }
+
+  .subtitle { font-size: 15px; color: #555; margin-bottom: 4px; }
+  .date { font-size: 13px; color: #888; margin-bottom: 32px; }
+
+  .toc { background: #f7f9fc; border: 1px solid #dce6f0; border-radius: 8px; padding: 20px 24px; margin-bottom: 36px; }
+  .toc h3 { margin-top: 0; font-size: 14px; color: #185FA5; text-transform: uppercase; letter-spacing: 0.06em; }
+  .toc ol { margin: 8px 0 0 16px; }
+  .toc li { margin-bottom: 3px; font-size: 13px; }
+  .toc a { color: #185FA5; text-decoration: none; }
+
+  .callout {
+    border-left: 3px solid #378ADD;
+    background: #f0f6ff;
+    border-radius: 0 6px 6px 0;
+    padding: 12px 16px;
+    margin: 14px 0;
+    font-size: 13.5px;
+    color: #1a1a1a;
+  }
+  .callout.green { border-color: #3B6D11; background: #f2f9eb; }
+  .callout.amber { border-color: #854F0B; background: #fef8ee; }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .tag.blue { background: #dbeeff; color: #0C447C; }
+  .tag.green { background: #e4f5d0; color: #27500A; }
+  .tag.amber { background: #fef0d0; color: #633806; }
+  .tag.purple { background: #eeecff; color: #3C3489; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  th { background: #f0f4f8; font-weight: 600; text-align: left; padding: 8px 12px; border: 1px solid #dce6f0; }
+  td { padding: 8px 12px; border: 1px solid #dce6f0; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafbfc; }
+
+  .refs { font-size: 13px; }
+  .refs li { margin-bottom: 10px; line-height: 1.5; }
+  .ref-tag { font-size: 11px; font-weight: 600; color: #555; margin-right: 6px; }
+
+  svg text { font-family: 'Inter', sans-serif; }
+
+  .figure { margin: 20px 0; }
+  .figure-caption { font-size: 12px; color: #666; text-align: center; margin-top: 6px; font-style: italic; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+  .card {
+    border: 1px solid #dce6f0;
+    border-radius: 8px;
+    padding: 14px 16px;
+    background: #fff;
+  }
+  .card h4 { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .card p { font-size: 13px; margin: 0; color: #333; }
+  .card .num { font-size: 22px; font-weight: 600; color: #185FA5; margin-bottom: 2px; }
+
+  hr { border: none; border-top: 1px solid #e8e8e8; margin: 32px 0; }
+
+  code { font-family: monospace; background: #f2f2f2; padding: 1px 5px; border-radius: 3px; font-size: 12.5px; }
+
+  .formula {
+    background: #f7f9fc;
+    border: 1px solid #dce6f0;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-family: monospace;
+    font-size: 13px;
+    margin: 12px 0;
+    color: #1a1a1a;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<h1>Свёрточные нейронные сети (CNN)</h1>
+<p class="subtitle">Конспект: принципы работы, архитектура, обучение</p>
+<p class="date">2025 · для самостоятельного изучения</p>
+
+<div class="toc">
+  <h3>Содержание</h3>
+  <ol>
+    <li><a href="#why">Зачем CNN — проблемы обычных сетей</a></li>
+    <li><a href="#convolution">Свёртка: механика и смысл</a></li>
+    <li><a href="#filters">Фильтры и feature maps</a></li>
+    <li><a href="#layer">Строение одного CNN-слоя</a></li>
+    <li><a href="#neurons">Нейроны в CNN: weight sharing</a></li>
+    <li><a href="#architecture">Полная архитектура CNN</a></li>
+    <li><a href="#hyperparams">Гиперпараметры слоя</a></li>
+    <li><a href="#refs">Ключевые статьи и ресурсы</a></li>
+  </ol>
+</div>
+
+
+<!-- 1. Зачем CNN -->
+<h2 id="why">1. Зачем CNN — проблемы обычных сетей</h2>
+
+<p>Обычная полносвязная сеть (MLP) плохо работает с изображениями по двум причинам:</p>
+<ul>
+  <li><strong>Слишком много параметров.</strong> Картинка 224×224 = 50 176 пикселей. Каждый нейрон первого слоя соединён со всеми — при 1024 нейронах это уже ~51 миллион весов только в одном слое.</li>
+  <li><strong>Не понимает пространство.</strong> Для MLP пиксель в левом углу и пиксель рядом — просто два разных числа. Она не знает, что соседние пиксели образуют линии, края, формы.</li>
+</ul>
+
+<div class="callout">
+  <strong>Ключевая идея CNN:</strong> важные паттерны на изображении локальны. Край, угол, глаз — это маленькая область пикселей, а не вся картинка сразу. CNN использует это.
+</div>
+
+<hr>
+
+
+<!-- 2. Свёртка -->
+<h2 id="convolution">2. Свёртка: механика и смысл</h2>
+
+<h3>Картинка — таблица чисел</h3>
+<p>Изображение в оттенках серого — матрица чисел от 0 (чёрный) до 255 (белый). Цветное изображение — три таких матрицы (каналы R, G, B), то есть тензор размером <code>H × W × 3</code>.</p>
+
+<h3>Что такое свёртка</h3>
+<p>Фильтр (ядро) — маленькая матрица весов, например 3×3. Он последовательно накладывается на каждую позицию входного изображения. В каждой позиции:</p>
+<ol>
+  <li>9 пикселей под фильтром умножаются на 9 весов фильтра попарно</li>
+  <li>Все произведения складываются в одно число</li>
+  <li>Это число записывается в feature map</li>
+</ol>
+
+<div class="formula">
+  output[i,j] = Σ Σ input[i+m, j+n] · filter[m, n]
+</div>
+
+<div class="figure">
+  <svg width="100%" viewBox="0 0 680 180">
+    <rect x="10" y="20" width="180" height="150" rx="6" fill="#EBF3FF" stroke="#378ADD" stroke-width="1"/>
+    <text x="100" y="14" text-anchor="middle" font-size="12" fill="#185FA5" font-weight="600">Вход 5×5</text>
+    <rect x="20" y="30" width="160" height="130" rx="3" fill="#fff" stroke="#B5D4F4" stroke-width="0.5"/>
+    <rect x="25" y="35" width="44" height="36" rx="2" fill="#FAEEDA" stroke="#EF9F27" stroke-width="1.5"/>
+    <text x="47" y="58" text-anchor="middle" font-size="11" fill="#633806">0  1  0</text>
+    <text x="100" y="75" text-anchor="middle" font-size="10" fill="#888">пиксели...</text>
+
+    <text x="270" y="95" text-anchor="middle" font-size="20" fill="#aaa">×</text>
+
+    <rect x="310" y="40" width="100" height="100" rx="6" fill="#FAEEDA" stroke="#EF9F27" stroke-width="1.5"/>
+    <text x="360" y="18" text-anchor="middle" font-size="12" fill="#854F0B" font-weight="600">Фильтр 3×3</text>
+    <text x="360" y="72" text-anchor="middle" font-size="11" fill="#633806">-1  0  +1</text>
+    <text x="360" y="88" text-anchor="middle" font-size="11" fill="#633806">-1  0  +1</text>
+    <text x="360" y="104" text-anchor="middle" font-size="11" fill="#633806">-1  0  +1</text>
+    <text x="360" y="158" text-anchor="middle" font-size="10" fill="#888">9 весов</text>
+
+    <text x="448" y="95" text-anchor="middle" font-size="20" fill="#aaa">=</text>
+
+    <rect x="470" y="40" width="100" height="100" rx="6" fill="#EAF3DE" stroke="#3B6D11" stroke-width="1.5"/>
+    <text x="520" y="18" text-anchor="middle" font-size="12" fill="#27500A" font-weight="600">Feature map 3×3</text>
+    <rect x="476" y="46" width="28" height="28" rx="2" fill="#27500A" stroke="none"/>
+    <rect x="508" y="46" width="28" height="28" rx="2" fill="#639922" stroke="none"/>
+    <rect x="540" y="46" width="28" height="28" rx="2" fill="#EAF3DE" stroke="#97C459" stroke-width="0.5"/>
+    <rect x="476" y="78" width="28" height="28" rx="2" fill="#639922" stroke="none"/>
+    <rect x="508" y="78" width="28" height="28" rx="2" fill="#27500A" stroke="none"/>
+    <rect x="540" y="78" width="28" height="28" rx="2" fill="#639922" stroke="none"/>
+    <rect x="476" y="110" width="28" height="28" rx="2" fill="#EAF3DE" stroke="#97C459" stroke-width="0.5"/>
+    <rect x="508" y="110" width="28" height="28" rx="2" fill="#639922" stroke="none"/>
+    <rect x="540" y="110" width="28" height="28" rx="2" fill="#27500A" stroke="none"/>
+    <text x="520" y="158" text-anchor="middle" font-size="10" fill="#888">тёмное = большое значение</text>
+
+    <line x1="210" y1="95" x2="250" y2="95" stroke="#aaa" stroke-width="1" marker-end="url(#ar)"/>
+    <line x1="430" y1="95" x2="460" y2="95" stroke="#aaa" stroke-width="1" marker-end="url(#ar)"/>
+    <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aaa" stroke-width="1.5" stroke-linecap="round"/></marker></defs>
+  </svg>
+  <p class="figure-caption">Рис. 1. Фильтр ползёт по изображению и создаёт feature map</p>
+</div>
+
+<h3>Смысл чисел в feature map</h3>
+<p>Большое число = фильтр нашёл в этом месте свой паттерн. Маленькое или отрицательное = паттерна нет. Feature map — это карта того, <em>где</em> на изображении встречается паттерн данного фильтра.</p>
+
+<div class="callout amber">
+  <strong>Важно:</strong> не нужно пытаться "увидеть кота" в feature map. Это не изображение для человека — это числовое описание того, где и насколько сильно сработал конкретный фильтр.
+</div>
+
+<hr>
+
+
+<!-- 3. Фильтры -->
+<h2 id="filters">3. Фильтры и feature maps</h2>
+
+<p>Фильтры не придумываются вручную — сеть сама находит их в процессе обучения. Но исследователи заметили: в первых слоях хорошо обученных сетей почти всегда появляются похожие фильтры.</p>
+
+<table>
+  <thead>
+    <tr><th>Тип фильтра</th><th>Что ищет</th><th>Веса (схематично)</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="tag blue">Вертикальный край</span></td>
+      <td>Переход от тёмного к светлому слева направо</td>
+      <td><code>[-1, 0, +1] по всем строкам</code></td>
+    </tr>
+    <tr>
+      <td><span class="tag green">Горизонтальный край</span></td>
+      <td>Переход сверху вниз</td>
+      <td><code>[-1,-1,-1 / 0,0,0 / +1,+1,+1]</code></td>
+    </tr>
+    <tr>
+      <td><span class="tag amber">Диагональный край</span></td>
+      <td>Наклонные границы объектов</td>
+      <td>диагональные знаки чередуются</td>
+    </tr>
+    <tr>
+      <td><span class="tag purple">Точка / угол</span></td>
+      <td>Пиксель, резко отличающийся от соседей</td>
+      <td><code>[-1,-1,-1 / -1,+8,-1 / -1,-1,-1]</code></td>
+    </tr>
+    <tr>
+      <td>Текстура</td>
+      <td>Мелкий повторяющийся узор (шерсть, трава)</td>
+      <td>чередование +1 и -1 в шахматном порядке</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Что происходит по слоям</h3>
+<p>Каждый следующий слой смотрит не на исходное изображение, а на feature maps предыдущего слоя — и строит более сложные паттерны:</p>
+<ul>
+  <li><strong>Слой 1</strong> → края, линии, градиенты</li>
+  <li><strong>Слой 2</strong> → углы, текстуры, дуги</li>
+  <li><strong>Слой 3</strong> → части объектов (ухо, колесо, контур)</li>
+  <li><strong>Слой 4+</strong> → целые объекты (кот, машина, лицо)</li>
+</ul>
+
+<div class="callout green">
+  Это было экспериментально подтверждено в работе Zeiler & Fergus (2014): визуализация внутренних слоёв AlexNet показала именно такую иерархию признаков.
+</div>
+
+<hr>
+
+
+<!-- 4. Строение слоя -->
+<h2 id="layer">4. Строение одного CNN-слоя</h2>
+
+<p>Один CNN-слой — это не одна операция, а три, которые всегда идут вместе:</p>
+
+<div class="grid2">
+  <div class="card" style="border-color:#378ADD;">
+    <h4 style="color:#0C447C;">1. Свёртка (Convolution)</h4>
+    <p>Фильтры ползут по входу, создают feature maps. Могут давать отрицательные числа.</p>
+  </div>
+  <div class="card" style="border-color:#1D9E75;">
+    <h4 style="color:#085041;">2. ReLU (активация)</h4>
+    <p>Все отрицательные числа → 0. Оставляет только положительные сигналы. Добавляет нелинейность.</p>
+  </div>
+</div>
+<div style="margin-top: 14px;">
+  <div class="card" style="border-color:#EF9F27;">
+    <h4 style="color:#633806;">3. Pooling (субдискретизация)</h4>
+    <p>Делит каждую feature map на квадраты 2×2, берёт максимум из каждого (Max Pooling). Карта уменьшается вдвое. Даёт устойчивость к небольшим сдвигам объекта.</p>
+  </div>
+</div>
+
+<div class="figure" style="margin-top:20px;">
+  <svg width="100%" viewBox="0 0 680 100">
+    <rect x="10" y="20" width="120" height="60" rx="6" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5"/>
+    <text x="70" y="48" text-anchor="middle" font-size="12" fill="#0C447C" font-weight="600">Свёртка</text>
+    <text x="70" y="65" text-anchor="middle" font-size="10" fill="#185FA5">32 фильтра 3×3</text>
+
+    <line x1="130" y1="50" x2="185" y2="50" stroke="#aaa" stroke-width="1" marker-end="url(#ar2)"/>
+    <defs><marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aaa" stroke-width="1.5" stroke-linecap="round"/></marker></defs>
+
+    <rect x="187" y="20" width="120" height="60" rx="6" fill="#E1F5EE" stroke="#1D9E75" stroke-width="1.5"/>
+    <text x="247" y="48" text-anchor="middle" font-size="12" fill="#085041" font-weight="600">ReLU</text>
+    <text x="247" y="65" text-anchor="middle" font-size="10" fill="#0F6E56">max(0, x)</text>
+
+    <line x1="307" y1="50" x2="362" y2="50" stroke="#aaa" stroke-width="1" marker-end="url(#ar2)"/>
+
+    <rect x="364" y="20" width="120" height="60" rx="6" fill="#FAEEDA" stroke="#EF9F27" stroke-width="1.5"/>
+    <text x="424" y="48" text-anchor="middle" font-size="12" fill="#633806" font-weight="600">Max Pooling</text>
+    <text x="424" y="65" text-anchor="middle" font-size="10" fill="#854F0B">размер ÷ 2</text>
+
+    <line x1="484" y1="50" x2="539" y2="50" stroke="#aaa" stroke-width="1" marker-end="url(#ar2)"/>
+
+    <rect x="541" y="20" width="130" height="60" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="1.5"/>
+    <text x="606" y="44" text-anchor="middle" font-size="12" fill="#3C3489" font-weight="600">Тензор</text>
+    <text x="606" y="60" text-anchor="middle" font-size="10" fill="#534AB7">меньше, глубже</text>
+  </svg>
+  <p class="figure-caption">Рис. 2. Три операции одного CNN-слоя</p>
+</div>
+
+<h3>Зачем нужен ReLU</h3>
+<p>Без функции активации несколько слоёв свёрток математически эквивалентны одному — они сворачиваются в одну линейную операцию. ReLU добавляет нелинейность, и сеть начинает учить сложные паттерны.</p>
+
+<div class="formula">ReLU(x) = max(0, x)</div>
+
+<hr>
+
+
+<!-- 5. Нейроны и weight sharing -->
+<h2 id="neurons">5. Нейроны в CNN: weight sharing</h2>
+
+<h3>Что такое нейрон в свёрточном слое</h3>
+<p>Каждая ячейка feature map — это один нейрон. Он:</p>
+<ul>
+  <li>Смотрит только на маленький участок входа (3×3 или 5×5)</li>
+  <li>Умножает 9 входных пикселей на 9 весов фильтра</li>
+  <li>Складывает результат + bias, прогоняет через ReLU</li>
+  <li>Выдаёт одно число</li>
+</ul>
+
+<h3>Weight sharing — главное отличие от FC</h3>
+<p>Все нейроны одного фильтра используют одни и те же веса. Нейрон в позиции [0,0] и нейрон в позиции [10,5] применяют одинаковый фильтр, просто к разным участкам изображения.</p>
+
+<table>
+  <thead>
+    <tr><th></th><th>FC-слой (MLP)</th><th>Свёрточный слой</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Связи нейрона</td>
+      <td>Со всеми входами</td>
+      <td>Только с участком 3×3</td>
+    </tr>
+    <tr>
+      <td>Веса</td>
+      <td>У каждого нейрона свои</td>
+      <td>Один фильтр на весь слой</td>
+    </tr>
+    <tr>
+      <td>Параметров (5×5→3 нейрона)</td>
+      <td>75 весов + bias</td>
+      <td>9 весов + bias</td>
+    </tr>
+    <tr>
+      <td>Умеет</td>
+      <td>Комбинировать любые признаки</td>
+      <td>Искать паттерн в любом месте</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>Следствие weight sharing:</strong> сеть не нужно учить "кот в левом углу" и "кот в правом углу" отдельно. Один фильтр ищет кота везде. Это делает CNN в тысячи раз эффективнее MLP для изображений.
+</div>
+
+<hr>
+
+
+<!-- 6. Полная архитектура -->
+<h2 id="architecture">6. Полная архитектура CNN</h2>
+
+<p>CNN делится на две части с принципиально разными задачами:</p>
+
+<div class="figure">
+  <svg width="100%" viewBox="0 0 680 140">
+    <defs><marker id="ar3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aaa" stroke-width="1.5" stroke-linecap="round"/></marker></defs>
+
+    <rect x="8" y="30" width="60" height="80" rx="4" fill="#E6F1FB" stroke="#378ADD" stroke-width="1"/>
+    <text x="38" y="68" text-anchor="middle" font-size="10" fill="#0C447C">224×224</text>
+    <text x="38" y="82" text-anchor="middle" font-size="10" fill="#0C447C">×3</text>
+    <text x="38" y="125" text-anchor="middle" font-size="9" fill="#888">вход</text>
+    <line x1="68" y1="70" x2="80" y2="70" stroke="#aaa" stroke-width="0.8" marker-end="url(#ar3)"/>
+
+    <rect x="82" y="20" width="100" height="100" rx="6" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5"/>
+    <text x="132" y="56" text-anchor="middle" font-size="11" fill="#0C447C" font-weight="600">Блок 1</text>
+    <text x="132" y="73" text-anchor="middle" font-size="10" fill="#185FA5">Conv ×32</text>
+    <text x="132" y="88" text-anchor="middle" font-size="10" fill="#085041">ReLU</text>
+    <text x="132" y="103" text-anchor="middle" font-size="10" fill="#854F0B">Pool ÷2</text>
+    <text x="132" y="130" text-anchor="middle" font-size="9" fill="#888">112×112×32</text>
+    <line x1="182" y1="70" x2="194" y2="70" stroke="#aaa" stroke-width="0.8" marker-end="url(#ar3)"/>
+
+    <rect x="196" y="20" width="100" height="100" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="1.5"/>
+    <text x="246" y="56" text-anchor="middle" font-size="11" fill="#3C3489" font-weight="600">Блок 2</text>
+    <text x="246" y="73" text-anchor="middle" font-size="10" fill="#534AB7">Conv ×64</text>
+    <text x="246" y="88" text-anchor="middle" font-size="10" fill="#085041">ReLU</text>
+    <text x="246" y="103" text-anchor="middle" font-size="10" fill="#854F0B">Pool ÷2</text>
+    <text x="246" y="130" text-anchor="middle" font-size="9" fill="#888">56×56×64</text>
+    <line x1="296" y1="70" x2="308" y2="70" stroke="#aaa" stroke-width="0.8" marker-end="url(#ar3)"/>
+
+    <rect x="310" y="35" width="66" height="70" rx="6" fill="#FAEEDA" stroke="#EF9F27" stroke-width="1.5"/>
+    <text x="343" y="68" text-anchor="middle" font-size="11" fill="#633806" font-weight="600">Flatten</text>
+    <text x="343" y="83" text-anchor="middle" font-size="9" fill="#854F0B">→ вектор</text>
+    <text x="343" y="130" text-anchor="middle" font-size="9" fill="#888">~200 000</text>
+    <line x1="376" y1="70" x2="388" y2="70" stroke="#aaa" stroke-width="0.8" marker-end="url(#ar3)"/>
+
+    <rect x="390" y="25" width="100" height="90" rx="6" fill="#FAECE7" stroke="#993C1D" stroke-width="1.5"/>
+    <text x="440" y="58" text-anchor="middle" font-size="11" fill="#712B13" font-weight="600">FC-слои</text>
+    <text x="440" y="75" text-anchor="middle" font-size="10" fill="#993C1D">1024 → 512</text>
+    <text x="440" y="90" text-anchor="middle" font-size="10" fill="#993C1D">→ N классов</text>
+    <text x="440" y="130" text-anchor="middle" font-size="9" fill="#888">признаки → класс</text>
+    <line x1="490" y1="70" x2="502" y2="70" stroke="#aaa" stroke-width="0.8" marker-end="url(#ar3)"/>
+
+    <rect x="504" y="35" width="110" height="70" rx="6" fill="#EAF3DE" stroke="#3B6D11" stroke-width="1.5"/>
+    <text x="559" y="62" text-anchor="middle" font-size="11" fill="#27500A" font-weight="600">Softmax</text>
+    <text x="559" y="79" text-anchor="middle" font-size="10" fill="#3B6D11">кот: 92%</text>
+    <text x="559" y="93" text-anchor="middle" font-size="10" fill="#3B6D11">собака: 8%</text>
+    <text x="559" y="130" text-anchor="middle" font-size="9" fill="#888">ответ</text>
+
+    <rect x="82" y="8" width="295" height="12" rx="2" fill="#E6F1FB" stroke="none"/>
+    <text x="229" y="18" text-anchor="middle" font-size="9" fill="#185FA5" font-weight="600">← извлечение признаков →</text>
+    <rect x="388" y="8" width="228" height="12" rx="2" fill="#FAECE7" stroke="none"/>
+    <text x="502" y="18" text-anchor="middle" font-size="9" fill="#993C1D" font-weight="600">← классификация →</text>
+  </svg>
+  <p class="figure-caption">Рис. 3. Полная архитектура CNN</p>
+</div>
+
+<div class="grid2" style="margin-top: 16px;">
+  <div class="card">
+    <h4>Извлечение признаков</h4>
+    <p>Свёрточные блоки. Карты уменьшаются пространственно (pooling), но растут в глубину (больше фильтров). Ранние слои — края, поздние — части объектов.</p>
+  </div>
+  <div class="card">
+    <h4>Классификация</h4>
+    <p>Flatten выпрямляет тензор в вектор. FC-слои соотносят признаки с классами. Softmax превращает числа в вероятности (сумма = 100%).</p>
+  </div>
+</div>
+
+<hr>
+
+<div class="page-break"></div>
+
+<!-- 7. Гиперпараметры -->
+<h2 id="hyperparams">7. Гиперпараметры слоя</h2>
+
+<p>Гиперпараметры задаёт человек до обучения. Сеть сама их не выбирает — она только учит значения внутри фильтров.</p>
+
+<table>
+  <thead>
+    <tr><th>Параметр</th><th>Что задаёт</th><th>Типичные значения</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Количество фильтров</strong></td>
+      <td>Сколько разных паттернов ищет слой</td>
+      <td>32, 64, 128, 256 — удваивается с глубиной</td>
+    </tr>
+    <tr>
+      <td><strong>Размер фильтра</strong></td>
+      <td>Насколько большой участок видит нейрон</td>
+      <td>3×3 (стандарт), иногда 5×5 в первом слое</td>
+    </tr>
+    <tr>
+      <td><strong>Stride</strong></td>
+      <td>Шаг сдвига фильтра</td>
+      <td>1 (стандарт), 2 для уменьшения размера</td>
+    </tr>
+    <tr>
+      <td><strong>Padding</strong></td>
+      <td>Обрамление нулями по краям</td>
+      <td>"same" — сохранить размер, "valid" — не добавлять</td>
+    </tr>
+    <tr>
+      <td><strong>Глубина фильтра</strong></td>
+      <td>Не выбирается — равна глубине входа</td>
+      <td>Автоматически: если вход 32 карты → фильтр 3×3×32</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Пример подсчёта параметров</h3>
+<p>Слой с 64 фильтрами размером 3×3, вход глубиной 32:</p>
+<div class="formula">
+  64 фильтра × (3×3×32 весов + 1 bias) = 64 × 289 = 18 496 параметров
+</div>
+
+<div class="callout">
+  Откуда берутся конкретные числа (64, 128, ...)? Это накопленный опыт экспериментов. Именно поэтому появились стандартные архитектуры — VGG, ResNet, EfficientNet — где всё уже подобрано.
+</div>
+
+<hr>
+
+
+<!-- 8. Статьи -->
+<h2 id="refs">8. Ключевые статьи и ресурсы</h2>
+
+<h3>Основополагающие работы</h3>
+<ol class="refs">
+  <li>
+    <span class="ref-tag">[1]</span>
+    <strong>LeCun et al. (1998).</strong> Gradient-based learning applied to document recognition. <em>Proceedings of the IEEE.</em><br>
+    Первая работа с CNN (LeNet-5) для распознавания рукописных цифр. Фундамент всей области.<br>
+    <a href="http://yann.lecun.com/exdb/publis/pdf/lecun-98.pdf">yann.lecun.com/exdb/publis/pdf/lecun-98.pdf</a>
+  </li>
+  <li>
+    <span class="ref-tag">[2]</span>
+    <strong>Krizhevsky, Sutskever, Hinton (2012).</strong> ImageNet Classification with Deep Convolutional Neural Networks. <em>NeurIPS.</em><br>
+    AlexNet — работа, возродившая интерес к нейросетям. Победа на ImageNet с большим отрывом.<br>
+    <a href="https://papers.nips.cc/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf">papers.nips.cc</a>
+  </li>
+  <li>
+    <span class="ref-tag">[3]</span>
+    <strong>Simonyan, Zisserman (2014).</strong> Very Deep Convolutional Networks for Large-Scale Image Recognition. <em>ICLR 2015.</em><br>
+    VGGNet — показала что глубина (16–19 слоёв) и маленькие фильтры 3×3 работают лучше больших.<br>
+    <a href="https://arxiv.org/abs/1409.1556">arxiv.org/abs/1409.1556</a>
+  </li>
+  <li>
+    <span class="ref-tag">[4]</span>
+    <strong>He et al. (2015).</strong> Deep Residual Learning for Image Recognition. <em>CVPR 2016.</em><br>
+    ResNet — ввёл skip connections (остаточные связи), позволив обучать сети из 100+ слоёв. Прорыв в глубоких архитектурах.<br>
+    <a href="https://arxiv.org/abs/1512.03385">arxiv.org/abs/1512.03385</a>
+  </li>
+  <li>
+    <span class="ref-tag">[5]</span>
+    <strong>Zeiler, Fergus (2013).</strong> Visualizing and Understanding Convolutional Networks. <em>ECCV 2014.</em><br>
+    Показала что учат нейроны разных слоёв CNN — края, текстуры, части объектов. Объясняет иерархию признаков.<br>
+    <a href="https://arxiv.org/abs/1311.2901">arxiv.org/abs/1311.2901</a>
+  </li>
+</ol>
+
+<h3>Современные архитектуры</h3>
+<ol class="refs" start="6">
+  <li>
+    <span class="ref-tag">[6]</span>
+    <strong>Szegedy et al. (2014).</strong> Going Deeper with Convolutions (GoogLeNet / Inception).<br>
+    <a href="https://arxiv.org/abs/1409.4842">arxiv.org/abs/1409.4842</a>
+  </li>
+  <li>
+    <span class="ref-tag">[7]</span>
+    <strong>Tan, Le (2019).</strong> EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks.<br>
+    Систематический подход к масштабированию глубины, ширины и разрешения.<br>
+    <a href="https://arxiv.org/abs/1905.11946">arxiv.org/abs/1905.11946</a>
+  </li>
+</ol>
+
+<h3>Учебные ресурсы</h3>
+<ol class="refs" start="8">
+  <li>
+    <span class="ref-tag">[8]</span>
+    <strong>Stanford CS231n.</strong> Convolutional Neural Networks for Visual Recognition.<br>
+    Лучший открытый курс по CNN с подробными конспектами.<br>
+    <a href="https://cs231n.github.io">cs231n.github.io</a>
+  </li>
+  <li>
+    <span class="ref-tag">[9]</span>
+    <strong>Goodfellow, Bengio, Courville (2016).</strong> Deep Learning. MIT Press.<br>
+    Глава 9 целиком посвящена свёрточным сетям. Доступна бесплатно онлайн.<br>
+    <a href="https://www.deeplearningbook.org">deeplearningbook.org</a>
+  </li>
+  <li>
+    <span class="ref-tag">[10]</span>
+    <strong>CNN Explainer (интерактивная визуализация).</strong><br>
+    Визуально показывает как картинка проходит через все слои CNN в реальном времени.<br>
+    <a href="https://poloclub.github.io/cnn-explainer/">poloclub.github.io/cnn-explainer</a>
+  </li>
+  <li>
+    <span class="ref-tag">[11]</span>
+    <strong>Sesen AI — 2D Convolution Visualizer.</strong><br>
+    Интерактивный визуализатор свёртки: stride, padding, dilation в реальном времени.<br>
+    <a href="https://sesen.ai/convolution-visualizer">sesen.ai/convolution-visualizer</a>
+  </li>
+</ol>
+
+<hr>
+
+<p style="font-size:12px; color:#aaa; text-align:center; margin-top: 20px;">
+  Конспект составлен на основе беседы с Claude (Anthropic) · 2025
+</p>
+
+</body>
+</html>
