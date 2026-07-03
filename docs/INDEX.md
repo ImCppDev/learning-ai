@@ -6,6 +6,7 @@
 
 - [cnn/](../cnn/) — CNN на PyTorch, распознавание MNIST (`cnn_mnist.py`)
 - [local-llm-lab/](../local-llm-lab/) — клиент к локальным LLM (LM Studio, Ollama) через OpenAI-совместимый API (`main.py`); заметки по экспериментам в `NOTES.md`
+- [obsidian-mcp/](../obsidian-mcp/) — MCP-сервер (read-only) поверх Obsidian vault: поиск и чтение заметок (`server.py`)
 
 ## Стек
 

@@ -18,6 +18,12 @@
     "context7": {
       "type": "http",
       "url": "https://mcp.context7.com/mcp"
+    },
+    "obsidian": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "python", "obsidian-mcp/server.py"],
+      "env": { "OBSIDIAN_VAULT_PATH": "${OBSIDIAN_VAULT_PATH}" }
     }
   }
 }
