@@ -1,68 +1,68 @@
 ---
 name: docs-audit
 description: |
-  Аудит и синхронизация документации с кодом. Используй этот скилл когда пользователь хочет проверить актуальность документации, обновить доки под код, найти устаревшую документацию, удалить ненужное, или переписать «планы» как факты. Триггерные фразы: «проверь документацию», «актуализируй доки», «обнови документацию», «синхронизируй доки с кодом», «docs audit», «check docs».
+  Audit and sync documentation with code. Use this skill when the user wants to check whether docs are up to date, update docs to match code, find stale documentation, remove clutter, or rewrite "plans" as facts. Trigger phrases: "check the docs", "update the docs", "sync docs with code", "docs audit", "check docs".
 ---
 
 # Docs Audit Skill
 
-Цикл: **Discovery → Triage → Verify → Fix**. Все пути и паттерны выводятся автоматически из проекта — хардкода нет.
+Cycle: **Discovery → Triage → Verify → Fix**. All paths and patterns are derived from the project automatically — nothing hardcoded.
 
 ---
 
-## Фаза 0: Discovery (всегда первая)
+## Phase 0: Discovery (always first)
 
 ```bash
-# 1. Найти точку входа в документацию
+# 1. Find the documentation entry point
 find . -name "INDEX.md" -not -path "*/node_modules/*" -not -path "*/.git/*"
 
-# 2. Определить языки по расширениям файлов в git
+# 2. Detect languages by file extensions in git
 git ls-files | grep -v "node_modules\|\.git\|dist\|__pycache__" \
   | sed 's/.*\.//' | sort | uniq -c | sort -rn | head -15
 
-# 3. Определить фреймворк (расширение — это язык, не фреймворк, нужен отдельный сигнал)
+# 3. Detect the framework (extension is the language, not the framework — needs a separate signal)
 grep -rlE "^\s*(from flask|import flask)" --include="*.py" . 2>/dev/null | head -1
 grep -rlE "^\s*(from django|import django)" --include="*.py" . 2>/dev/null | head -1
 grep -rlE "^\s*(from fastapi|import fastapi)" --include="*.py" . 2>/dev/null | head -1
 grep -l '"express"\|"vue"\|"react"' package.json 2>/dev/null
 
-# 4. Извлечь исходные директории, упомянутые в INDEX.md
-# (читай INDEX.md один раз — это единственный файл, который читается полностью на старте)
+# 4. Extract source directories mentioned in INDEX.md
+# (read INDEX.md once — it's the only file read in full at the start)
 ```
 
-Если `find` в шаге 1 находит несколько `INDEX.md` (монорепо) — веди аудит по каждому отдельно,
-со своими `DOCS_ROOT`/`SOURCE_DIRS`/`STACK`, не смешивай в одну сессию.
+If `find` in step 1 finds multiple `INDEX.md` files (monorepo), audit each separately,
+with its own `DOCS_ROOT`/`SOURCE_DIRS`/`STACK` — don't mix them in one session.
 
-По результатам Discovery составь конфиг сессии:
-- `DOCS_ROOT` — директория с INDEX.md
-- `SOURCE_DIRS` — папки с исходниками (из ссылок в INDEX.md, вида `../backend/`, `../frontend/src/`)
-- `STACK` — язык + фреймворк (Python/Flask, JS/Vue, Go, etc.)
+From Discovery, build the session config:
+- `DOCS_ROOT` — directory containing INDEX.md
+- `SOURCE_DIRS` — source folders (from links in INDEX.md, e.g. `../backend/`, `../frontend/src/`)
+- `STACK` — language + framework (Python/Flask, JS/Vue, Go, etc.)
 
 ---
 
-## Фаза 1: Triage — что менялось
+## Phase 1: Triage — what changed
 
 ```bash
 git log --since="30 days ago" --name-only --pretty=format:"" | sort -u | grep -v "^$"
 ```
 
-Пусто (нет коммитов за 30 дней) → это не «всё ок», а значит окно неинформативно.
-Возьми вместо него последние 20 коммитов и отметь в отчёте, что сработал fallback:
+Empty (no commits in 30 days) doesn't mean "all fine" — it means the window is uninformative.
+Fall back to the last 20 commits instead, and note in the report that the fallback fired:
 
 ```bash
 git log -20 --name-only --pretty=format:"" | sort -u | grep -v "^$"
 ```
 
-Из результата выдели: какие `SOURCE_DIRS` затронуты → только по ним делай Verify.
+From the result, extract which `SOURCE_DIRS` are affected → Verify only those.
 
 ---
 
-## Фаза 2: Verify — структурный diff (без чтения файлов)
+## Phase 2: Verify — structural diff (no file reading)
 
-### 2.1 Битые ссылки в документации
+### 2.1 Broken links in documentation
 
-Резолвь каждую ссылку относительно директории самого doc-файла (не `$DOCS_ROOT`) —
-ссылки бывают и на соседние доки (`.md`), не только на исходники:
+Resolve each link relative to the doc file's own directory (not `$DOCS_ROOT`) —
+links can point to sibling docs (`.md`) too, not just sources:
 
 ```bash
 find "$DOCS_ROOT" -name "*.md" | while read doc; do
@@ -72,22 +72,22 @@ find "$DOCS_ROOT" -name "*.md" | while read doc; do
 done
 ```
 
-### 2.2 Orphan-файлы: есть в коде, нет в доках
+### 2.2 Orphan files: in the code, not in the docs
 
-Для каждой затронутой `SOURCE_DIR` из Triage (рекурсивно — исходники бывают во вложенных папках):
+For each affected `SOURCE_DIR` from Triage (recursively — sources can live in nested folders):
 
 ```bash
-# Получить список реальных файлов
+# Get the list of real files
 find "$SOURCE_DIR" -type f -not -path "*/__pycache__/*" -not -path "*/node_modules/*" \
   | sed "s|^$SOURCE_DIR/||" | sort
 
-# Получить список упомянутых файлов в соответствующем doc-файле
+# Get the list of files mentioned in the corresponding doc file
 grep -oh '[a-zA-Z0-9_-]*\.\(py\|js\|vue\|ts\)' "$DOCS_ROOT/X.md" | sort -u
 ```
 
-Diff этих двух списков (по basename) — добавь строки для файлов, которых нет в доках.
+Diff the two lists (by basename) — add entries for files missing from the docs.
 
-### 2.3 Счётчики (framework-specific, выбирай по STACK)
+### 2.3 Counters (framework-specific, pick by STACK)
 
 **Flask/FastAPI** (Python):
 ```bash
@@ -108,54 +108,54 @@ done
 grep -c 'path\|re_path' "$ROUTES_DIR"/urls.py 2>/dev/null
 ```
 
-Сравни с числами в документации. Исправь расхождения.
+Compare with the numbers in the docs. Fix discrepancies.
 
-### 2.4 Orphan docs: есть в docs/, нет в INDEX.md
+### 2.4 Orphan docs: in docs/, not in INDEX.md
 
 ```bash
-# Найти все .md в поддиректориях docs
+# Find all .md files under docs
 find "$DOCS_ROOT" -name "*.md" -not -name "INDEX.md" | sort
 
-# Проверить, упомянут ли каждый в INDEX.md
+# Check whether each is mentioned in INDEX.md
 grep -oh '[a-zA-Z0-9_/.-]*\.md' "$DOCS_ROOT/INDEX.md" | sort -u
 ```
 
-Diff → добавь ссылки в INDEX.md для orphan-файлов.
+Diff → add links in INDEX.md for orphan files.
 
-### 2.5 Плановый язык
+### 2.5 Planning language
 
 ```bash
-grep -rn "планируется\|будет реализован\|будет добавлен\|TODO\|FIXME\|coming soon\|WIP" \
+grep -rn "planned\|will be implemented\|will be added\|TODO\|FIXME\|coming soon\|WIP" \
   "$DOCS_ROOT" --include="*.md" \
   | grep -v "plans/\|roadmap\|ROADMAP"
 ```
 
 ---
 
-## Фаза 3: Fix
+## Phase 3: Fix
 
-1. **Битые ссылки** → исправь путь или удали строку
-2. **Orphan-файлы** → добавь минимальную строку (имя файла, назначение в 1 фразе)
-3. **Неверные счётчики** → исправь число в доке
-4. **Orphan docs** → добавь ссылку в INDEX.md
-5. **Плановый язык** → перепиши как факт если реализовано, иначе перенеси в ROADMAP
-
----
-
-## Запреты
-
-- Не читай файлы исходников — только grep/ls
-- Читай doc-файл только если обнаружено расхождение
-- Не документируй приватные функции (префикс `_`)
-- Не трогай файлы в `plans/` — это архив решений
+1. **Broken links** → fix the path or remove the line
+2. **Orphan files** → add a minimal entry (file name, purpose in one phrase)
+3. **Wrong counters** → fix the number in the doc
+4. **Orphan docs** → add a link in INDEX.md
+5. **Planning language** → rewrite as fact if implemented, otherwise move to ROADMAP
 
 ---
 
-## Отчёт
+## Restrictions
+
+- Don't read source files — grep/ls only
+- Read a doc file only when a discrepancy is found
+- Don't document private functions (`_` prefix)
+- Don't touch files under `plans/` — that's a decision archive
+
+---
+
+## Report
 
 ```
 Stack: <detected>  |  Docs root: <path>  |  Source dirs: <list>
-Проверено: N файлов | Изменено: N | Битых ссылок: N | Orphan-файлов: N | Счётчики: N исправлено
-- docs/backend.md — processing.py: 3→5 эндпоинтов
-- docs/frontend.md — добавлены: Foo.vue, useBar.js
+Checked: N files | Changed: N | Broken links: N | Orphan files: N | Counters: N fixed
+- docs/backend.md — processing.py: 3→5 endpoints
+- docs/frontend.md — added: Foo.vue, useBar.js
 ```

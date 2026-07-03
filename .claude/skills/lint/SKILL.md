@@ -1,45 +1,45 @@
 ---
 name: lint
 description: |
-  Запуск линтеров для бэка и фронта. Используй этот скилл когда пользователь хочет проверить качество кода, запустить линтер, найти ошибки стиля или форматирования. Триггерные фразы: «запусти линтер», «проверь код», «lint», «ruff», «eslint», «форматирование», «стиль кода».
+  Run linters for backend and frontend. Use this skill when the user wants to check code quality, run a linter, or find style/formatting errors. Trigger phrases: "run the linter", "check the code", "lint", "ruff", "eslint", "formatting", "code style".
 ---
 
 # Lint Skill
 
 ## Scope
 
-- «бэк» / «python» / «ruff» → только Backend
-- «фронт» / «vue» / «eslint» → только Frontend
-- без уточнений → оба
+- "backend" / "python" / "ruff" → Backend only
+- "frontend" / "vue" / "eslint" → Frontend only
+- no qualifier → both
 
 ## Backend (Ruff)
 
-Ищи ближайший `pyproject.toml` вверх от изменённых файлов — это корень запуска.
+Find the nearest `pyproject.toml` upward from the changed files — that's the run root.
 
 ```bash
 uv run ruff check .
 uv run ruff check . --fix
-uv run ruff format .   # только если явно просят форматирование
+uv run ruff format .   # only if formatting is explicitly requested
 ```
 
 ## Frontend (ESLint)
 
-Найди `package.json` с `eslint` в зависимостях (`find . -name package.json -not -path '*/node_modules/*'`) — запускай из этой директории. Если такого файла нет — фронтенда в репозитории ещё нет, сообщи об этом вместо запуска.
+Find `package.json` with `eslint` in its dependencies (`find . -name package.json -not -path '*/node_modules/*'`) — run from that directory. If no such file exists, there's no frontend in the repo yet — say so instead of running.
 
 ```bash
 npm run lint
 npm run lint:fix
-npm run format   # только если явно просят форматирование
+npm run format   # only if formatting is explicitly requested
 ```
 
-## Поведение
+## Behavior
 
-- **Нет ошибок** → `✓ Backend: OK` / `✓ Frontend: OK`
-- **Есть ошибки** → покажи список файлов, спроси: автофикс или детали?
-- **После автофикса** → покажи список изменённых файлов
+- **No errors** → `✓ Backend: OK` / `✓ Frontend: OK`
+- **Errors found** → show the list of files, ask: autofix or details?
+- **After autofix** → show the list of changed files
 
-## Запреты
+## Restrictions
 
-- Не запускай `ruff format` / `npm run format` без явного запроса
-- Не правь код вручную если можно автофиксом
-- `E`, `F` — критичные, не игнорируй
+- Don't run `ruff format` / `npm run format` unless explicitly requested
+- Don't fix code manually if autofix can do it
+- `E`, `F` are critical — don't ignore them

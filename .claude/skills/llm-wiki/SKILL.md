@@ -1,153 +1,153 @@
 ---
 name: llm-wiki
 description: |
-  Построение и поддержка LLM-вики — персональной базы знаний из связанных markdown-страниц.
-  Используй когда пользователь хочет: создать wiki из источников, добавить новый источник в вики,
-  найти что-то в вики, проверить состояние вики. Паттерн по статье Андрея Карпати.
-  Триггерные фразы: «добавь в вики», «обнови вики», «найди в вики», «проверь вики»,
-  «llm wiki», «ingest», «создай страницу», «wiki lint».
+  Build and maintain an LLM wiki — a personal knowledge base of linked markdown pages.
+  Use when the user wants to: build a wiki from sources, add a new source to the wiki,
+  find something in the wiki, or check the wiki's state. Pattern from Andrej Karpathy's article.
+  Trigger phrases: "add to the wiki", "update the wiki", "find in the wiki", "check the wiki",
+  "llm wiki", "ingest", "create a page", "wiki lint".
 ---
 
 # LLM Wiki Skill
 
-Три уровня: **Источники** (неизменные) → **Вики** (LLM поддерживает) → **Схема** (правила структуры).
-Три операции: **Ingest** → **Query** → **Lint**.
+Three layers: **Sources** (immutable) → **Wiki** (LLM-maintained) → **Schema** (structure rules).
+Three operations: **Ingest** → **Query** → **Lint**.
 
-## Структура
+## Structure
 
 ```
 wiki/
-├── SCHEMA.md       # правила структуры (не менять без явной команды)
-├── INDEX.md        # индекс всех страниц
-├── entities/       # люди, инструменты, системы
-├── concepts/       # паттерны, идеи, термины
-├── sources/        # summaries источников
-└── queries/        # сохранённые ответы
+├── SCHEMA.md       # structure rules (don't change without an explicit command)
+├── INDEX.md        # index of all pages
+├── entities/       # people, tools, systems
+├── concepts/       # patterns, ideas, terms
+├── sources/        # source summaries
+└── queries/        # saved answers
 ```
 
-**Имя файла = slug**: kebab-case, латиница (транслит кириллицы), единственное число.
-Примеры: «Трансформер» → `transformer.md`, «Карпати, Андрей» → `andrej-karpathy.md`, «GPT-4» → `gpt-4.md`.
+**File name = slug**: kebab-case, Latin script (transliterate non-Latin), singular.
+Examples: "Transformer" → `transformer.md`, "Andrej Karpathy" → `andrej-karpathy.md`, "GPT-4" → `gpt-4.md`.
 
-Slug — единственный идентификатор страницы. Перед созданием всегда проверяй по slug
-(`find`/`grep -il` по имени файла), а не по тексту названия — падежи и регистр в русском
-ломают текстовый поиск по заголовку.
+The slug is the page's only identifier. Always check by slug before creating a page
+(`find`/`grep -il` by file name), not by title text — casing and inflection can break
+text search on a title.
 
-Каждая страница: frontmatter `tags`, `updated` + markdown. Ссылка на страницу — `[[slug]]`
-(без `.md`, без пути) — так slug и есть имя файла, что делает связь однозначно разрешимой.
+Every page: frontmatter `tags`, `updated` + markdown. Link to a page with `[[slug]]`
+(no `.md`, no path) — since the slug is the file name, this makes the link unambiguously resolvable.
 
 ---
 
-## Инициализация (если `wiki/` нет)
+## Initialization (if `wiki/` doesn't exist)
 
-Создай директории и пустой `wiki/INDEX.md`. Создай `wiki/SCHEMA.md`:
+Create the directories and an empty `wiki/INDEX.md`. Create `wiki/SCHEMA.md`:
 
 ```markdown
 # Schema
 
-**Тема:** <по контексту первого источника>
-**Язык:** ru
+**Topic:** <from the context of the first source>
+**Language:** en
 
-## Имена файлов
-slug: kebab-case, латиница (транслит кириллицы), единственное число.
-Пример: «Трансформер» → `transformer.md`
+## File names
+slug: kebab-case, Latin script (transliterate non-Latin), singular.
+Example: "Transformer" → `transformer.md`
 
-## Ссылки
-`[[slug]]` — без `.md` и без пути, slug = имя файла без расширения
+## Links
+`[[slug]]` — no `.md` and no path, slug = file name without extension
 
-## Теги
-Свободный список. Перед добавлением нового тега — grep по существующим в wiki/, переиспользуй.
+## Tags
+Free-form list. Before adding a new tag, grep existing ones in wiki/ and reuse.
 ```
 
 ---
 
-## Ingest (добавить источник)
+## Ingest (add a source)
 
-1. Прочитай `wiki/SCHEMA.md` и `wiki/INDEX.md`
-2. Получи источник: URL → WebFetch, файл → Read
-3. Проверь дубликат источника по URL:
+1. Read `wiki/SCHEMA.md` and `wiki/INDEX.md`
+2. Get the source: URL → WebFetch, file → Read
+3. Check for a duplicate source by URL:
    ```bash
    grep -rl "url: <URL>" wiki/sources/
    ```
-   Есть → обнови существующий source вместо создания нового.
-4. Для каждой сущности/концепции:
-   - Определи slug по конвенции из `SCHEMA.md`
-   - Проверь существование: `find wiki/ -iname "SLUG.md"`
-   - Есть → обнови: добавь факты, добавь источник в `## Sources`, обнови `updated`
-   - Нет → создай `wiki/{entities|concepts}/SLUG.md`:
+   If found → update the existing source instead of creating a new one.
+4. For each entity/concept:
+   - Determine the slug per the convention in `SCHEMA.md`
+   - Check if it exists: `find wiki/ -iname "SLUG.md"`
+   - Exists → update: add facts, add the source under `## Sources`, update `updated`
+   - Doesn't exist → create `wiki/{entities|concepts}/SLUG.md`:
    ```markdown
    ---
-   tags: [тег1, тег2]
+   tags: [tag1, tag2]
    updated: YYYY-MM-DD
    ---
-   # Название
-   Краткое определение.
-   ## Ключевые факты
+   # Title
+   Brief definition.
+   ## Key facts
    - ...
-   ## Связи
-   - [[другой-slug]] — почему связаны
+   ## Links
+   - [[other-slug]] — why they're related
    ## Sources
-   - [Название источника](../sources/url-slug.md)
+   - [Source title](../sources/url-slug.md)
    ```
-5. Создай/обнови `wiki/sources/URL-SLUG.md`:
+5. Create/update `wiki/sources/URL-SLUG.md`:
    ```markdown
    ---
    tags: [source]
    updated: YYYY-MM-DD
    url: https://...
    ---
-   # Название
-   **Тип:** статья / бумага / книга  **Автор:** ...  **Дата:** ...
-   ## Ключевые идеи
+   # Title
+   **Type:** article / paper / book  **Author:** ...  **Date:** ...
+   ## Key ideas
    1. ...
-   ## Упомянутые сущности
+   ## Entities mentioned
    [[slug1]], [[slug2]]
    ```
-6. Обнови `INDEX.md`: `- [Название](путь.md) — одна строка`
-7. Отчёт: `Создано: N (entities: X, concepts: Y) | Обновлено: M`
+6. Update `INDEX.md`: `- [Title](path.md) — one line`
+7. Report: `Created: N (entities: X, concepts: Y) | Updated: M`
 
 ---
 
-## Query (найти ответ)
+## Query (find an answer)
 
-0. Сначала проверь кэш готовых ответов: `grep -ril "ключевое слово" wiki/queries/`
-1. Если не нашлось — ищи по вики:
+0. First check the cache of ready answers: `grep -ril "keyword" wiki/queries/`
+1. If not found, search the wiki:
    ```bash
-   grep -ril "КЛЮЧЕВОЕ_СЛОВО" wiki/ --include="*.md"
-   grep -rn "ТЕРМИН" wiki/ --include="*.md" -C 2
+   grep -ril "KEYWORD" wiki/ --include="*.md"
+   grep -rn "TERM" wiki/ --include="*.md" -C 2
    ```
 
-Читай только найденные страницы. Дай ответ со ссылками на файлы.
-Если вопрос нетривиальный — сохрани в `wiki/queries/` с `tags: [query]`.
+Read only the pages found. Answer with links to the files.
+If the question is non-trivial, save it under `wiki/queries/` with `tags: [query]`.
 
 ---
 
-## Lint (проверить вики)
+## Lint (check the wiki)
 
 ```bash
-# Orphaned pages (не в INDEX)
+# Orphaned pages (not in INDEX)
 find wiki/ -name "*.md" ! -name "INDEX.md" ! -name "SCHEMA.md" | while read f; do
   grep -q "$(basename "$f")" wiki/INDEX.md || echo "ORPHAN: $f"
 done
 
-# Broken links ([[slug]] без соответствующего файла)
+# Broken links ([[slug]] with no matching file)
 grep -rohE '\[\[[^]]+\]\]' wiki/ | tr -d '[]' | sort -u | while read slug; do
   find wiki/ -iname "${slug}.md" | grep -q . || echo "BROKEN: [[$slug]]"
 done
 
-# Stale pages (сортировка по дате, старые первые)
+# Stale pages (sorted by date, oldest first)
 for f in $(find wiki/ -name "*.md" ! -name "INDEX.md" ! -name "SCHEMA.md"); do
   d=$(grep -m1 "^updated:" "$f" | sed 's/updated: *//')
   echo "$d $f"
 done | sort | head -20
 ```
 
-Отчёт: `Всего: N | 🔴 Orphaned: X | 🟡 Broken links: Y | 🔵 Stale >30д: Z`
+Report: `Total: N | 🔴 Orphaned: X | 🟡 Broken links: Y | 🔵 Stale >30d: Z`
 
 ---
 
-## Запреты
+## Restrictions
 
-- Не изменяй источники в `sources/`
-- Не читай всю вики — сначала grep, потом точечное чтение
-- Не создавай дубли — всегда проверяй по slug перед созданием
-- Не меняй `SCHEMA.md` без явной просьбы
+- Don't modify sources under `sources/`
+- Don't read the whole wiki — grep first, then read specific files
+- Don't create duplicates — always check by slug before creating
+- Don't change `SCHEMA.md` without an explicit request
