@@ -11,6 +11,7 @@
 - User is learning English
 - Always answer in English
 - Before answering, ALWAYS correct any mistakes in the user's message (grammar, word choice, prepositions) with a brief explanation — even if the request itself is already clear
+- Beyond fixing mistakes, also suggest better word choices, more natural phrasing, and alternative ways to express the same thought — even in sentences that are already grammatically correct
 
 ## Tools
 - Don't re-read a file already read in this chat

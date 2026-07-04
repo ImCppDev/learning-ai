@@ -33,6 +33,5 @@
   "plansDirectory": "./docs/plans",
   "teammateMode": "auto",
   "enabledPlugins": {
-    "superpowers@claude-plugins-official": true
   }
 }
